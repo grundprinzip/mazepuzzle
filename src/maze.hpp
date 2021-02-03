@@ -40,8 +40,7 @@ public:
 
   Maze(M5Display d, int xo, int yo, int w, int h)
       : lcd(d), x(xo), y(yo), width(w), height(h) {
-    // Prepare the maze.
-    maze.resize(width * height, true);
+
   }
 
   inline int exit() const { return exit_; }
@@ -99,6 +98,9 @@ public:
   /**
    */
   inline void generate() {
+    // Prepare the maze.
+    maze.clear();
+    maze.resize(width * height, true);
     maze[0] = false;
 
     std::vector<int> walls;

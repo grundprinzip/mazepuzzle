@@ -1,8 +1,12 @@
 #pragma once
+#include <cmath>
 #include <cstdint>
 #include <memory>
+
+#include "BMM150class.h"
+#include <Arduino.h>
 #include <M5Stack.h>
-#include <cmath>
+#include <utility/MahonyAHRS.h>
 
 #include "maze.hpp"
 
@@ -17,10 +21,34 @@ class Player {
 
   M5Display lcd_;
 
+  // Used for the Gyro
+  BMM150class bmm150_;
+
+  static const int AVERAGENUM_INIT = 512;
+  float init_gyroX_ = 0.0F;
+  float init_gyroY_ = 0.0F;
+  float init_gyroZ_ = 0.0F;
+
+  float gyroX_ = 0.0F;
+  float gyroY_ = 0.0F;
+  float gyroZ_ = 0.0F;
+
+  float accX_ = 0.0F;
+  float accY_ = 0.0F;
+  float accZ_ = 0.0F;
+
+  float pitch_ = 0.0F;
+  float roll_ = 0.0F;
+  float yaw_ = 0.0F;
+
+private:
+  // Initialize the Gyro.
+  void initGyro();
+
 public:
   using ptr_t = std::shared_ptr<Player>;
 
-  enum e_direction { UP = 0, RIGHT = 1, DOWN = 2, LEFT = 3 };
+  enum e_direction { UP = 0, RIGHT = 1, DOWN = 2, LEFT = 3, NONE = 4 };
 
   Player(M5Display d, const Maze::ptr_t &maze) : maze_(maze), lcd_(d) {}
 
@@ -52,7 +80,7 @@ public:
     int radius = Maze::FACTOR / 2 - 2;
     int x = maze_->xoffset() + maze_->to_x(position_) * Maze::FACTOR + radius;
     int y = maze_->yoffset() + maze_->to_y(position_) * Maze::FACTOR + radius;
-    lcd_.fillCircle(x,y, radius, Maze::FLOOR);
+    lcd_.fillCircle(x, y, radius, Maze::FLOOR);
   }
 
   // This function will draw the player as a circle, in contrast to the
@@ -63,8 +91,10 @@ public:
     int radius = Maze::FACTOR / 2 - 2;
 
     // Draw an animation along the two centerpoints.
-    int old_x = maze_->xoffset() + maze_->to_x(previous_position_) * Maze::FACTOR + radius;
-    int old_y = maze_->yoffset() + maze_->to_y(previous_position_) * Maze::FACTOR + radius;
+    int old_x = maze_->xoffset() +
+                maze_->to_x(previous_position_) * Maze::FACTOR + radius;
+    int old_y = maze_->yoffset() +
+                maze_->to_y(previous_position_) * Maze::FACTOR + radius;
 
     int x = maze_->xoffset() + maze_->to_x(position_) * Maze::FACTOR + radius;
     int y = maze_->yoffset() + maze_->to_y(position_) * Maze::FACTOR + radius;
@@ -72,13 +102,15 @@ public:
     int dir_x = old_x < x ? 1 : -1;
     int dir_y = old_y < y ? 1 : -1;
     while (old_x != x || old_y != y) {
-      lcd_.fillCircle(old_x,old_y, radius, color);
+      lcd_.fillCircle(old_x, old_y, radius, color);
       delay(10);
-      lcd_.fillCircle(old_x,old_y, radius, Maze::FLOOR);
-      if (old_x != x) old_x += dir_x;
-      if (old_y != y) old_y += dir_y;
+      lcd_.fillCircle(old_x, old_y, radius, Maze::FLOOR);
+      if (old_x != x)
+        old_x += dir_x;
+      if (old_y != y)
+        old_y += dir_y;
     }
-    lcd_.fillCircle(x,y, radius, color);
+    lcd_.fillCircle(x, y, radius, color);
   }
 
   inline bool left() { return move<LEFT>(); }
@@ -87,10 +119,21 @@ public:
   inline bool down() { return move<DOWN>(); }
   inline int pos() const { return position_; }
   inline bool next(e_direction d) {
-    if (d == UP) return up();
-    if (d == DOWN) return down();
-    if (d == LEFT) return left();
+    if (d == UP)
+      return up();
+    if (d == DOWN)
+      return down();
+    if (d == LEFT)
+      return left();
     return right();
   }
   inline bool done() { return position_ == maze_->exit(); }
+
+  void setup();
+
+  e_direction update();
+
+  void reset() {
+    position_ = 0;
+  }
 };

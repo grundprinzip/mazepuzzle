@@ -12,13 +12,10 @@
 #define HORIZONTAL_RESOLUTION 320
 #define VERTICAL_RESOLUTION 240
 #define POSITION_OFFSET_Y 20
-#define SIGNAL_LENGTH HORIZONTAL_RESOLUTION
 
-uint16_t oldSignal[SIGNAL_LENGTH];
-uint16_t adcBuffer[SIGNAL_LENGTH];
 
-#define SAMPLING_TIME_US 25
-#define ANALOG_SIGNAL_INPUT M5STACKFIRE_MICROPHONE_PIN
+#define FSS18 &FreeSans18pt7b
+#define FF19 &FreeSans18pt7b
 
 // This is the main game context
 Maze::ptr_t maze;
@@ -34,46 +31,40 @@ void setup() {
   M5.Lcd.begin();
   M5.Power.begin();
   M5.Lcd.fillScreen(WHITE);
+
+
   maze = std::make_shared<Maze>(M5.Lcd, 10, 10, 13, 13);
   maze->generate();
-  maze->draw();
 
   player = std::make_shared<Player>(M5.Lcd, maze);
+  player->setup();
+
+  maze->draw();
 }
 
 void loop(void) {
   if (!done) {
-    // One step of the player
-    player->clear();
-    // Check "left":
-    Player::e_direction left;
-    if (dir == Player::RIGHT)
-      left = Player::UP;
-    else if (dir == Player::DOWN)
-      left = Player::RIGHT;
-    else if (dir == Player::LEFT)
-      left = Player::DOWN;
-    else
-      left = Player::LEFT;
 
-    if (player->next(left)) {
-      dir = left;
-    } else {
-      while (!player->next(dir)) {
-        if (dir == Player::RIGHT)
-          dir = Player::DOWN;
-        else if (dir == Player::DOWN)
-          dir = Player::LEFT;
-        else if (dir == Player::LEFT)
-          dir = Player::UP;
-        else
-          dir = Player::RIGHT;
+    auto dir = player->update();
+    if (dir != Player::NONE) {
+      //player->clear();
+      if (player->next(dir)) {
+        done = player->done();
+        player->draw(RED);
       }
     }
-    done = player->done();
-    if (!done) {
-      player->draw(RED);
-    }
+  } else {
+    M5.Lcd.setFreeFont(FF19);
+    M5.Lcd.setTextColor(RED);
+    M5.Lcd.drawString("Win!", 220, 100, 1);
+    delay(5000);
+    M5.Lcd.setTextColor(WHITE);
+    M5.Lcd.drawString("Win!", 220, 100, 1);
+    maze->generate();
+    maze->draw();
+    player->reset();
+    dir = Player::NONE;
+    done = false;
   }
   delay(10);
 }
